@@ -61,7 +61,7 @@ io.of('/socket').on("connection", (socket) => {
 
     // Runs when client disconnects
     socket.on("disconnect", () => {
-
+        delete sockets[socket.id];
     });
 });
 
