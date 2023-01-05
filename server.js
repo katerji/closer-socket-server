@@ -16,14 +16,13 @@ io.of('/').use((socket, next) => {
    io.of('/socket').use((socket, next) => {
       next();
    });
-    next(new Error("thou shall not pass"));
+    next(new Error("Unauthorized"));
 });
 io.of('/socket').use((socket, next) => {
-    console.log(socket);
     const token = socket.handshake.query.token;
     jwt.verify(token, secret, function(err, decoded) {
         if (err) {
-            next(new Error("thou shall not pass"));
+            next(new Error("Unauthorized"));
         } else {
             decoded.jwtToken = token;
             sockets[socket.id] = decoded;
@@ -40,7 +39,6 @@ io.of('/socket').on("connection", (socket) => {
         socket.join(userChatIds);
     }
     socket.on("chat-message", (socketMessage) => {
-        console.log("new message");
         let message = socketMessage.message;
         let chatId = socketMessage.chat_id;
         socket.to(chatId).emit("chat-message", message);
