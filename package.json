@@ -10,6 +10,7 @@
     "axios": "^1.2.2",
     "dotenv": "^14.3.2",
     "express": "^4.17.1",
+    "forever": "^4.0.3",
     "jsonwebtoken": "^9.0.0",
     "moment": "^2.24.0",
     "redis": "^4.0.2",
