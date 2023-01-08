@@ -19,11 +19,12 @@ io.of('/').use((socket, next) => {
     next(new Error("Unauthorized"));
 });
 io.of('/socket').use((socket, next) => {
-    const token = socket.handshake.query.token;
+    const token = socket.handshake.auth.token;
     jwt.verify(token, secret, function(err, decoded) {
         if (err) {
             next(new Error("Unauthorized"));
         } else {
+
             decoded.jwtToken = token;
             sockets[socket.id] = decoded;
             next();
@@ -41,13 +42,15 @@ io.of('/socket').on("connection", (socket) => {
     socket.on("chat-message", (socketMessage) => {
         let message = socketMessage.message;
         let chatId = socketMessage.chat_id;
-        socket.to(chatId).emit("chat-message", message);
+
         let token = sockets[socket.id].jwtToken;
         let body = {
             message: message,
             message_type: 1,
-            chat_id: chatId
+            chat_id: chatId,
+            sender_user_id: user.id,
         }
+        socket.to(chatId).emit("chat-message", body);
         let url = apiURL + 'message';
         let config = {
             headers: {
