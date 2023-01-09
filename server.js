@@ -12,21 +12,30 @@ const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
 var sockets = []
+var userSocket = []
+
+let socketEventNewMessage = "chat-message";
+let socketEventNewChat = "new-chat";
+
+
 io.of('/').use((socket, next) => {
-   io.of('/socket').use((socket, next) => {
-      next();
-   });
+    io.of('/socket').use((socket, next) => {
+        next();
+    });
     next(new Error("Unauthorized"));
 });
 io.of('/socket').use((socket, next) => {
     const token = socket.handshake.auth.token;
-    jwt.verify(token, secret, function(err, decoded) {
+    jwt.verify(token, secret, function (err, decoded) {
         if (err) {
             next(new Error("Unauthorized"));
         } else {
-
             decoded.jwtToken = token;
             sockets[socket.id] = decoded;
+
+            decoded.socketId = socket.id;
+            userSocket[decoded.id] = socket;
+
             next();
         }
     });
@@ -39,28 +48,52 @@ io.of('/socket').on("connection", (socket) => {
     if (Array.isArray(userChatIds)) {
         socket.join(userChatIds);
     }
-    socket.on("chat-message", (socketMessage) => {
+    socket.on(socketEventNewMessage, (socketMessage) => {
         let message = socketMessage.message;
         let chatId = socketMessage.chat_id;
 
         let token = sockets[socket.id].jwtToken;
-        let body = {
-            message: message,
-            message_type: 1,
-            chat_id: chatId,
-            sender_user_id: user.id,
-        }
-        socket.to(chatId).emit("chat-message", body);
         let url = apiURL + 'message';
         let config = {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         };
-        axios.post(url, body, config)
+        let body = {
+            message: message,
+            message_type: 1,
+            chat_id: chatId,
+            sender_user_id: user.id,
+        }
+        socket.to(chatId).emit(socketEventNewMessage, body);
+        axios.post(url, body, config);
     });
+    socket.on(socketEventNewChat, (socketMessage) => {
+        let message = socketMessage.message;
+        let chatId = socketMessage.chat_id;
 
-    // Runs when client disconnects
+        let token = sockets[socket.id].jwtToken;
+        let url = apiURL + 'message';
+        let config = {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        };
+        let body = {
+            message: message,
+            message_type: 1,
+            chat_id: chatId,
+            sender_user_id: user.id,
+            chat_name: socketMessage.chat_name
+        }
+        socket.join(chatId);
+        let recipientId = socketMessage.recipient_user_id;
+        if (userSocket[recipientId] != undefined) {
+            userSocket[recipientId].join(chatId);
+        }
+        socket.to(chatId).emit(socketEventNewChat, body);
+        axios.post(url, body, config);
+    });
     socket.on("disconnect", () => {
         delete sockets[socket.id];
     });
